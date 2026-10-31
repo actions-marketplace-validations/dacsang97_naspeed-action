@@ -1,10 +1,10 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as core from '@actions/core';
 import * as httpm from '@actions/http-client';
 import * as tc from '@actions/tool-cache';
 import * as semver from 'semver';
+import * as ui from './ui';
 
 /** Repository whose GitHub releases carry the naspeed archives. */
 export const RELEASE_REPO = 'dacsang97/naspeed';
@@ -94,13 +94,13 @@ export async function install(tag: string, target: string): Promise<string> {
   const version = tag.replace(/^v/, '');
   const cached = tc.find('naspeed', version, target);
   if (cached) {
-    core.info(`naspeed ${tag} found in the runner tool cache: ${cached}`);
+    ui.info('found in the runner tool cache', {path: cached});
     return path.join(cached, 'naspeed');
   }
 
   const stem = archiveStem(tag, target);
   const archiveUrl = releaseUrl(tag, `${stem}.tar.gz`);
-  core.info(`Downloading ${archiveUrl}`);
+  ui.info('downloading', {url: archiveUrl});
   const archive = await tc.downloadTool(archiveUrl);
   const sums = await tc.downloadTool(`${archiveUrl}.sha256`);
 
@@ -109,7 +109,7 @@ export async function install(tag: string, target: string): Promise<string> {
   if (actual !== expected) {
     throw new Error(`checksum mismatch for ${stem}.tar.gz: expected ${expected}, got ${actual}`);
   }
-  core.info(`Checksum verified for ${stem}.tar.gz`);
+  ui.info('checksum verified', {sha256: actual.slice(0, 12)});
 
   const extracted = await tc.extractTar(archive);
   const dir = path.join(extracted, stem);

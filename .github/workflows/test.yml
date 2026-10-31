@@ -1,7 +1,8 @@
 name: test
 
-# End to end: install naspeed with this action, build a crate, save the store
-# to the Actions cache, then restore it in a second job and expect cache hits.
+# End to end: install naspeed with this action and run `naspeed test` on a
+# crate, save the store to the Actions cache, then restore it in a second job
+# and expect cache hits. Both jobs write the naspeed report to the summary.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -43,6 +44,8 @@ jobs:
           # Per attempt, so a re-run starts cold instead of restoring attempt 1.
           cache-key: e2e-${{ github.run_id }}-${{ github.run_attempt }}
           cache-save: 'true'
+          args: test
+          workdir: ${{ runner.temp }}/app
       - name: Check outputs
         env:
           VERSION: ${{ steps.naspeed.outputs.version }}
@@ -52,12 +55,8 @@ jobs:
           test "$CACHE_HIT" = false
           naspeed --version | grep -Fx "naspeed $VERSION"
           ns --version
-      - name: Build through naspeed
-        working-directory: ${{ runner.temp }}/app
-        run: |
-          cargo build
-          naspeed status --check
-          naspeed stats
+      - name: cargo goes through naspeed
+        run: naspeed status --check
 
   reuse:
     name: reuse (${{ matrix.os }})
@@ -84,16 +83,14 @@ jobs:
           # Per attempt, so a re-run starts cold instead of restoring attempt 1.
           cache-key: e2e-${{ github.run_id }}-${{ github.run_attempt }}
           cache-save: 'false'
+          args: test
+          workdir: ${{ runner.temp }}/app
       - name: Expect the store from warm
         env:
           CACHE_HIT: ${{ steps.naspeed.outputs.cache-hit }}
         run: test "$CACHE_HIT" = true
-      - name: Build hits the restored store
-        working-directory: ${{ runner.temp }}/app
-        run: |
-          cargo build
-          naspeed stats | tee stats.txt
-          grep -Eq 'rustc +: [1-9][0-9]* hits' stats.txt
+      - name: The build hit the restored store
+        run: naspeed stats --json | jq -e 'map(.hits) | add > 0'
 
   install-only:
     runs-on: ubuntu-24.04

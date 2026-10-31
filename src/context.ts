@@ -8,7 +8,10 @@ export interface Inputs {
   version: string;
   store: string;
   setupArgs: string[];
+  args: string[];
+  workdir: string;
   installOnly: boolean;
+  summary: boolean;
   cache: boolean;
   cacheKey: string;
   cacheSave: CacheSave;
@@ -23,8 +26,43 @@ export const expandHome = (p: string, home: string = os.homedir()): string => {
   return p;
 };
 
-/** Splits `setup-args` on whitespace; naspeed setup flags never contain spaces. */
-export const splitArgs = (args: string): string[] => args.split(/\s+/).filter(a => a.length > 0);
+/**
+ * Splits a command line like a POSIX shell would for words: whitespace
+ * separates, single quotes keep text literally, double quotes and a
+ * backslash keep spaces. No expansion: `$X` and `*` stay as written.
+ */
+export function splitArgs(line: string): string[] {
+  const words: string[] = [];
+  let word = '';
+  let inWord = false;
+  let quote: "'" | '"' | undefined;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote === "'") {
+      if (c === "'") quote = undefined;
+      else word += c;
+    } else if (c === '\\' && i + 1 < line.length) {
+      word += line[++i];
+      inWord = true;
+    } else if (quote === '"') {
+      if (c === '"') quote = undefined;
+      else word += c;
+    } else if (c === "'" || c === '"') {
+      quote = c;
+      inWord = true;
+    } else if (/\s/.test(c)) {
+      if (inWord) words.push(word);
+      word = '';
+      inWord = false;
+    } else {
+      word += c;
+      inWord = true;
+    }
+  }
+  if (quote) throw new Error(`unclosed ${quote} in "${line}"`);
+  if (inWord) words.push(word);
+  return words;
+}
 
 export const parseCacheSave = (value: string): CacheSave => {
   const v = (value || 'auto').trim().toLowerCase();
@@ -45,7 +83,10 @@ export function getInputs(): Inputs {
     version: core.getInput('version') || 'latest',
     store: expandHome(core.getInput('store') || '~/.naspeed'),
     setupArgs: splitArgs(core.getInput('setup-args')),
+    args: splitArgs(core.getInput('args')),
+    workdir: path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), core.getInput('workdir') || '.'),
     installOnly: core.getBooleanInput('install-only'),
+    summary: core.getBooleanInput('summary'),
     cache: core.getBooleanInput('cache'),
     cacheKey: core.getInput('cache-key') || 'naspeed',
     cacheSave: parseCacheSave(core.getInput('cache-save')),

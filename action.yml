@@ -11,6 +11,13 @@ inputs:
     description: 'naspeed version: latest, an exact version (0.1.0 or v0.1.0) or a semver range (~0.1)'
     default: 'latest'
     required: false
+  args:
+    description: 'Arguments for naspeed, run after setup and cache restore, e.g. `test --locked`. Empty: only install and set up'
+    required: false
+  workdir:
+    description: 'Working directory for `args`, relative to the repository root'
+    default: '.'
+    required: false
   store:
     description: 'naspeed store directory'
     default: '~/.naspeed'
@@ -21,6 +28,10 @@ inputs:
   install-only:
     description: 'Only put naspeed on PATH: no `naspeed setup`, no cache'
     default: 'false'
+    required: false
+  summary:
+    description: 'Add a naspeed report (build hits, tests replayed, cache) to the job summary'
+    default: 'true'
     required: false
   cache:
     description: 'Restore the store from the GitHub Actions cache (and save it, see cache-save)'

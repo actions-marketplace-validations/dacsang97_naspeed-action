@@ -5,7 +5,10 @@ import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as glob from '@actions/glob';
+import {runNaspeedOrThrow} from './run-naspeed';
+import * as ui from './ui';
 import type {CacheSave} from './context';
+import type {SaveOutcome} from './report';
 
 /**
  * Where the exported store travels between runs, the same directory the
@@ -88,29 +91,38 @@ export async function restore(
   }
   const matched = await cache.restoreCache([dir], keys.key, keys.restoreKeys);
   if (!matched) {
-    core.info('No saved naspeed store; starting cold');
+    ui.info('no saved store; starting cold');
     return undefined;
   }
-  core.info(`Restored naspeed store from ${matched}`);
+  ui.info('restored', {key: matched});
   if (fs.existsSync(path.join(dir, 'entries'))) {
-    await exec.exec(naspeed, ['cache', 'import', dir, '--store', store]);
+    await runNaspeedOrThrow(naspeed, ['cache', 'import', dir, '--store', store], 0);
   }
   return matched;
 }
 
 /** Exports recently used store entries and saves them under `key`. */
-export async function save(naspeed: string, store: string, dir: string, key: string, maxGb: number): Promise<void> {
+export async function save(
+  naspeed: string,
+  store: string,
+  dir: string,
+  key: string,
+  maxGb: number
+): Promise<SaveOutcome> {
   if (!cache.isFeatureAvailable()) {
     core.warning('The GitHub Actions cache is not available on this runner; naspeed store not saved');
-    return;
+    return {status: 'failed', reason: 'the Actions cache is not available on this runner'};
   }
   // Export reuses objects the restore left in `dir` and prunes the rest.
-  await exec.exec(naspeed, ['cache', 'export', dir, '--max-gb', String(maxGb), '--store', store]);
+  await runNaspeedOrThrow(naspeed, ['cache', 'export', dir, '--max-gb', String(maxGb), '--store', store], 0);
   try {
     await cache.saveCache([dir], key);
-    core.info(`Saved naspeed store as ${key}`);
+    ui.info('saved', {key});
+    return {status: 'saved', key};
   } catch (error) {
     // Another job of the same run (a matrix sharing this key) saved first.
-    core.warning(`naspeed store not saved: ${(error as Error).message}`);
+    const reason = (error as Error).message;
+    core.warning(`naspeed store not saved: ${reason}`);
+    return {status: 'failed', reason};
   }
 }

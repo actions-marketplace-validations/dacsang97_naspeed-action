@@ -15,6 +15,17 @@ describe('splitArgs', () => {
     expect(splitArgs('')).toEqual([]);
     expect(splitArgs('  --cross\n --install-targets ')).toEqual(['--cross', '--install-targets']);
   });
+
+  it('keeps quoted and escaped spaces like a shell', () => {
+    expect(splitArgs('test --locked -- --skip "slow test"')).toEqual(['test', '--locked', '--', '--skip', 'slow test']);
+    expect(splitArgs(`release --notes 'a "b" c' x\\ y ""`)).toEqual(['release', '--notes', 'a "b" c', 'x y', '']);
+    expect(splitArgs('build --features "a b"c')).toEqual(['build', '--features', 'a bc']);
+    expect(splitArgs('echo $HOME *')).toEqual(['echo', '$HOME', '*']);
+  });
+
+  it('rejects an unclosed quote', () => {
+    expect(() => splitArgs('test "oops')).toThrow(/unclosed "/);
+  });
 });
 
 describe('parseCacheSave', () => {
