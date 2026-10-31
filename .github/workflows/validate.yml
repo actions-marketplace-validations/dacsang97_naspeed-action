@@ -1,0 +1,38 @@
+name: validate
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Installs vp (the version in package.json), Node from .node-version, then
+      # runs `vp install`. Pinned: setup-vp's v1 tag no longer moves.
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version-file: .node-version
+          cache: true
+      - run: vp check # format, lint and type check
+      - run: vp test
+      # dist/ is what runners execute; it must match the sources.
+      - run: vp pack
+      - name: Compare dist
+        run: |
+          if [ -n "$(git status --porcelain dist)" ]; then
+            echo "::error::dist/ is out of date. Run 'vp pack' and commit dist/."
+            git status --short dist
+            exit 1
+          fi

@@ -1,0 +1,60 @@
+# https://docs.github.com/en/actions/reference/metadata-syntax-for-github-actions
+name: 'naspeed'
+description: 'Install naspeed, point cargo at it and carry its build cache in the GitHub Actions cache'
+author: 'dacsang97'
+branding:
+  color: 'orange'
+  icon: 'zap'
+
+inputs:
+  version:
+    description: 'naspeed version: latest, an exact version (0.1.0 or v0.1.0) or a semver range (~0.1)'
+    default: 'latest'
+    required: false
+  store:
+    description: 'naspeed store directory'
+    default: '~/.naspeed'
+    required: false
+  setup-args:
+    description: 'Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`'
+    required: false
+  install-only:
+    description: 'Only put naspeed on PATH: no `naspeed setup`, no cache'
+    default: 'false'
+    required: false
+  cache:
+    description: 'Restore the store from the GitHub Actions cache (and save it, see cache-save)'
+    default: 'true'
+    required: false
+  cache-key:
+    description: 'Cache key prefix. Use one per kind of job (test, release) so their stores stay apart'
+    default: 'naspeed'
+    required: false
+  cache-save:
+    description: 'When to save the store: auto (pushes to the default branch only), true or false'
+    default: 'auto'
+    required: false
+  cache-max-gb:
+    description: 'Size cap of the exported store, in GB (GitHub allows 10 GB per repository)'
+    default: '3'
+    required: false
+  token:
+    description: 'GitHub token used to look up naspeed releases'
+    default: ${{ github.token }}
+    required: false
+
+outputs:
+  version:
+    description: 'Installed naspeed version'
+  path:
+    description: 'Path of the naspeed binary'
+  cache-hit:
+    description: 'true when a saved store was restored'
+  cache-matched-key:
+    description: 'Key of the restored cache entry'
+
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
+  post: 'dist/index.js'
+  post-if: success()

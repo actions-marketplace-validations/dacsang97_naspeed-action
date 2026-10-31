@@ -1,0 +1,37 @@
+{
+  "name": "naspeed-action",
+  "private": true,
+  "description": "GitHub Action for naspeed, a transparent RUSTC_WRAPPER build cache",
+  "keywords": [
+    "actions",
+    "cache",
+    "cargo",
+    "naspeed",
+    "rust"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dacsang97/naspeed-action.git"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "build": "vp pack",
+    "pre-checkin": "vp check --fix && vp test && vp pack"
+  },
+  "dependencies": {
+    "@actions/cache": "^6.3.0",
+    "@actions/core": "^3.0.1",
+    "@actions/exec": "^3.0.0",
+    "@actions/glob": "^0.7.0",
+    "@actions/http-client": "^4.0.1",
+    "@actions/tool-cache": "^4.0.0",
+    "semver": "^7.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/semver": "^7.8.0",
+    "vite-plus": "^1.4.0"
+  }
+}

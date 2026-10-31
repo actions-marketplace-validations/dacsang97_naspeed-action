@@ -1,0 +1,106 @@
+name: test
+
+# End to end: install naspeed with this action, build a crate, save the store
+# to the Actions cache, then restore it in a second job and expect cache hits.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  warm:
+    name: warm (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Create a test crate
+        run: |
+          cargo new --bin "$RUNNER_TEMP/app"
+          cd "$RUNNER_TEMP/app"
+          cargo add itoa@1 serde@1 --features serde/derive
+      - id: naspeed
+        uses: ./
+        with:
+          cache-key: e2e-${{ github.run_id }}
+          cache-save: 'true'
+      - name: Check outputs
+        env:
+          VERSION: ${{ steps.naspeed.outputs.version }}
+          CACHE_HIT: ${{ steps.naspeed.outputs.cache-hit }}
+        run: |
+          test -n "$VERSION"
+          test "$CACHE_HIT" = false
+          naspeed --version | grep -Fx "naspeed $VERSION"
+          ns --version
+      - name: Build through naspeed
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          cargo build
+          naspeed status --check
+          naspeed stats
+
+  reuse:
+    name: reuse (${{ matrix.os }})
+    needs: warm
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Create the same test crate
+        run: |
+          cargo new --bin "$RUNNER_TEMP/app"
+          cd "$RUNNER_TEMP/app"
+          cargo add itoa@1 serde@1 --features serde/derive
+      - id: naspeed
+        uses: ./
+        with:
+          cache-key: e2e-${{ github.run_id }}
+          cache-save: 'false'
+      - name: Expect the store from warm
+        env:
+          CACHE_HIT: ${{ steps.naspeed.outputs.cache-hit }}
+        run: test "$CACHE_HIT" = true
+      - name: Build hits the restored store
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          cargo build
+          naspeed stats | tee stats.txt
+          grep -Eq 'rustc +: [1-9][0-9]* hits' stats.txt
+
+  install-only:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./
+        with:
+          version: '~0.1'
+          install-only: 'true'
+      - run: |
+          naspeed --version
+          test ! -e ~/.cargo/config.toml || ! grep -q naspeed ~/.cargo/config.toml
