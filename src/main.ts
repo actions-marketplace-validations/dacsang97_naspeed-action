@@ -86,15 +86,12 @@ async function restore(
   };
 }
 
-/** Runs `naspeed <args>` in `workdir`. Returns the exit code. */
-async function runArgs(bin: string, inputs: context.Inputs): Promise<number> {
-  const {args, workdir} = inputs;
-  const start = Date.now();
-  const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-  ui.info('running', {cmd: ['naspeed', ...args].join(' '), workdir: workdir === workspace ? undefined : workdir});
-  const code = await runNaspeed(bin, args, 1, workdir);
-  ui.took(start);
-  return code;
+/**
+ * Runs `naspeed <args>` in `workdir` and returns the exit code. naspeed logs
+ * its own steps and timings, so the action adds no lines around them.
+ */
+function runArgs(bin: string, inputs: context.Inputs): Promise<number> {
+  return runNaspeed(bin, inputs.args, 0, inputs.workdir);
 }
 
 async function writeReport(state: ReportState, save: report.SaveOutcome): Promise<void> {

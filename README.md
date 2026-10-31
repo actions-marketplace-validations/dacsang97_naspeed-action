@@ -13,7 +13,7 @@ transparent `RUSTC_WRAPPER` build cache. One step:
 5. writes a **naspeed Report** to the job summary: rustc hits and misses,
    test binaries replayed, time saved, and what happened to the cache.
 
-The log is a tree, and naspeed's own lines nest under the action's steps:
+The log is a tree; the action's steps and naspeed's own lines share one format:
 
 ```text
 • installing naspeed                    version=latest target=x86_64-unknown-linux-musl
@@ -26,13 +26,15 @@ The log is a tree, and naspeed's own lines nest under the action's steps:
   • restored                            key=test-Linux-X64-1.99.1-ab12…-41-1-test
   • importing store                     dir=/home/runner/.naspeed-ci
     • imported 347 entries              objects_copied=812 size=1.2 GiB
-• running                               cmd=naspeed test --locked
-  • running cargo test                  args=--locked
-  • cargo test passed
-    • rustc                             hits=346 misses=2
-    • tests                             replayed=1 ran=1
-  • took: 41s
+• running cargo test                    args=--locked
+  (cargo test output)
+• cargo test passed
+  • rustc                               hits=346 misses=2
+  • tests                               replayed=1 ran=1
+    • took: 41s
 ```
+
+The lines of `args` are naspeed's own: the action adds none around the command.
 
 ## Usage
 
