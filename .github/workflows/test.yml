@@ -35,11 +35,13 @@ jobs:
         run: |
           cargo new --bin "$RUNNER_TEMP/app"
           cd "$RUNNER_TEMP/app"
-          cargo add itoa@1 serde@1 --features serde/derive
+          cargo add itoa@1
+          cargo add serde@1 --features derive
       - id: naspeed
         uses: ./
         with:
-          cache-key: e2e-${{ github.run_id }}
+          # Per attempt, so a re-run starts cold instead of restoring attempt 1.
+          cache-key: e2e-${{ github.run_id }}-${{ github.run_attempt }}
           cache-save: 'true'
       - name: Check outputs
         env:
@@ -74,11 +76,13 @@ jobs:
         run: |
           cargo new --bin "$RUNNER_TEMP/app"
           cd "$RUNNER_TEMP/app"
-          cargo add itoa@1 serde@1 --features serde/derive
+          cargo add itoa@1
+          cargo add serde@1 --features derive
       - id: naspeed
         uses: ./
         with:
-          cache-key: e2e-${{ github.run_id }}
+          # Per attempt, so a re-run starts cold instead of restoring attempt 1.
+          cache-key: e2e-${{ github.run_id }}-${{ github.run_attempt }}
           cache-save: 'false'
       - name: Expect the store from warm
         env:
