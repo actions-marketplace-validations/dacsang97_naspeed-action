@@ -12,7 +12,7 @@ export interface Inputs {
   workdir: string;
   installOnly: boolean;
   summary: boolean;
-  cache: boolean;
+  cache: CacheMode;
   cacheKey: string;
   cacheSave: CacheSave;
   cacheMaxGb: number;
@@ -78,6 +78,26 @@ export const parseMaxGb = (value: string): number => {
   return gb;
 };
 
+export type CacheMode = 'auto' | 'true' | 'false';
+
+export function parseCacheMode(input: string): CacheMode {
+  const v = (input || 'auto').trim().toLowerCase();
+  if (v === 'auto' || v === 'true' || v === 'false') return v;
+  throw new Error(`cache must be auto, true or false, got ${JSON.stringify(input)}`);
+}
+
+/**
+ * Whether to carry the store through the GitHub Actions cache. `auto` does
+ * so unless the runner is self-hosted and its store already holds entries:
+ * a persistent machine keeps `~/.naspeed` between runs, while an ephemeral
+ * runner (or a persistent one on its first run) starts with an empty store
+ * and needs the restore, and the save, like a GitHub-hosted runner.
+ */
+export function useActionsCache(mode: CacheMode, runnerEnvironment: string | undefined, storeWarm: boolean): boolean {
+  if (mode !== 'auto') return mode === 'true';
+  return runnerEnvironment !== 'self-hosted' || !storeWarm;
+}
+
 export function getInputs(): Inputs {
   return {
     version: core.getInput('version') || 'latest',
@@ -87,8 +107,9 @@ export function getInputs(): Inputs {
     workdir: path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), core.getInput('workdir') || '.'),
     installOnly: core.getBooleanInput('install-only'),
     summary: core.getBooleanInput('summary'),
-    cache: core.getBooleanInput('cache'),
-    cacheKey: core.getInput('cache-key') || 'naspeed',
+    cache: parseCacheMode(core.getInput('cache')),
+    // Empty: one slot per workflow job, derived automatically.
+    cacheKey: core.getInput('cache-key'),
     cacheSave: parseCacheSave(core.getInput('cache-save')),
     cacheMaxGb: parseMaxGb(core.getInput('cache-max-gb')),
     token: core.getInput('token')
